@@ -10,7 +10,6 @@
                 let canvas = document.getElementById('canvas');
 
                 var sf = new stablefluids.StableFluids(canvas);
-                console.log(sf);
                 function onFrame(ts){
                     sf.onFrame(ts);
                     window.requestAnimationFrame(onFrame);
