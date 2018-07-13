@@ -3,7 +3,7 @@ precision mediump float;
 in vec2 vUV;
 
 uniform sampler2D uSampler; //2D
-uniform sampler2D uSamplerB;//2D
+uniform sampler2D uSampler1;//2D
 
 uniform float uAlpha;
 uniform float uBeta;
@@ -20,7 +20,7 @@ void main(){
     vec2 y1 = texture(uSampler,vUV - vec2(0,voff)).xy;
     vec2 y2 = texture(uSampler,vUV + vec2(0,voff)).xy;
 
-    vec2 b1 = texture(uSamplerB,vUV).xy;
+    vec2 b1 = texture(uSampler1,vUV).xy;
 
     fragColor = (x1 + x2 +y1+y2 + uAlpha *b1) / uBeta;
 }
