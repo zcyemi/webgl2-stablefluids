@@ -1,5 +1,6 @@
+#version 300 es
 precision highp float;
-varying vec2 vUV;
+in vec2 vUV;
 
 uniform sampler2D uSampler;
 uniform float uDeltaTime;
@@ -8,12 +9,14 @@ uniform float uDeltaTime;
 uniform vec2 uForceOrigin;
 uniform vec2 uForceVector;
 uniform float uForceExponent;
+
+out vec2 fragColor;
 void main(){
-    vec4 col = texture2D(uSampler,vUV);
+    vec4 col = texture(uSampler,vUV);
     ivec2 texsize = textureSize(uSampler,0);
 
     vec2 pos = col.xy;
     float amp = exp(-uForceExponent * distance(uForceOrigin,pos));
 
-    gl_FragColor = col + uForceVector * amp;
+    fragColor = col.xy + uForceVector * amp;
 }
