@@ -49,7 +49,7 @@ function BuildTemplate(){
 
 function BuildShader(){
     console.log('[sync shader]');
-    gulp.src('./src/shader/*.glsl').pipe(gulpGLSLMerge('/src/script/gl/wglShaderLib.ts'));
+    gulp.src('./src/shader/*.glsl').pipe(gulpGLSLMerge('/src/script/ShaderLibs.ts'));
 }
 
 
