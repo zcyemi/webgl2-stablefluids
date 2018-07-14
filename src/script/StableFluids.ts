@@ -33,8 +33,7 @@ export class StableFluids {
     private m_mouseX: number = 0;
     private m_mouseY: number = 0;
 
-    private m_inputX: number = 0;
-    private m_inputY: number = 0;
+    private m_mouseMoved:boolean = false;
 
 
     public constructor(canvas: HTMLCanvasElement) {
@@ -54,11 +53,15 @@ export class StableFluids {
     private EvtOnMouseMove(e: MouseEvent) {
         this.m_mouseX = e.offsetX;
         this.m_mouseY = e.offsetY;
-
     }
 
     private InitGL() {
         let gl = this.gl;
+
+        //exts
+        let avail_exts = gl.getSupportedExtensions();
+        let ext = gl.getExtension('EXT_color_buffer_float');
+        let extf = gl.getExtension('OES_texture_float_linear');
 
         //buffers
         let vbuffer = gl.createBuffer();
@@ -115,8 +118,6 @@ export class StableFluids {
         gl.clearColor(0, 0, 0, 1);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-
-
     }
 
 
@@ -129,37 +130,35 @@ export class StableFluids {
     private m_colRT1 :WebGLTexture;
     private m_colRT2: WebGLTexture;
 
+    private m_dx: number;
+    private m_difAlpha_prec:number;
+    private m_viscosity:number = 0.002478;
+    private m_force:number = 300;
+    private m_exponent:number = 200;
+
 
     private InitSimulator() {
         if(!this.m_textureLoaded) return;
 
         let gl = this.gl;
-        this.m_texV1 = this.CreateTexture(gl.RG32F,gl.RG,SIM_SIZE_W,SIM_SIZE_H,gl.FLOAT);
-        this.m_texV2 = this.CreateTexture(gl.RG32F,gl.RG,SIM_SIZE_W,SIM_SIZE_H,gl.FLOAT);
-        this.m_texV3 = this.CreateTexture(gl.RG32F,gl.RG,SIM_SIZE_W,SIM_SIZE_H,gl.FLOAT);
+        this.m_texV1 = this.CreateTexture(gl.RG32F,SIM_SIZE_W,SIM_SIZE_H);
+        this.m_texV2 = this.CreateTexture(gl.RG32F,SIM_SIZE_W,SIM_SIZE_H);
+        this.m_texV3 = this.CreateTexture(gl.RG32F,SIM_SIZE_W,SIM_SIZE_H);
 
-        this.m_texP1 = this.CreateTexture(gl.R32F,gl.RED,SIM_SIZE_W,SIM_SIZE_H,gl.FLOAT);
-        this.m_texP2 = this.CreateTexture(gl.R32F,gl.RED,SIM_SIZE_W,SIM_SIZE_H,gl.FLOAT);
+        this.m_texP1 = this.CreateTexture(gl.R32F,SIM_SIZE_W,SIM_SIZE_H);
+        this.m_texP2 = this.CreateTexture(gl.R32F,SIM_SIZE_W,SIM_SIZE_H);
         
-        //this.m_colRT1 = this.CreateTexture(gl.RGB32F,gl.RGB,SIM_SIZE_W,SIM_SIZE_H,gl.FLOAT);
-        this.m_colRT2 = this.CreateTexture(gl.RGB32F,gl.RGB,SIM_SIZE_W,SIM_SIZE_H,gl.FLOAT);
+        this.m_colRT1 = this.CreateTexture(gl.RGBA4,SIM_SIZE_W,SIM_SIZE_H);
+        this.m_colRT2 = this.CreateTexture(gl.RGBA4,SIM_SIZE_W,SIM_SIZE_H);
 
-        let tex = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB32F,512,512,0,gl.RGB,gl.FLOAT,null);
-        //gl.generateMipmap(gl.TEXTURE_2D);
-
-        gl.bindTexture(gl.TEXTURE_2D,null);
-        this.m_colRT1 = tex;
-
-
-
-        //this.RenderToTexture(this.m_texImage,this.m_colRT1);
-
+        this.RenderToTexture(this.m_texImage,this.m_texV1);
         this.ResetFrameBuffer();
 
-
         this.m_inited = true;
+
+        let dx = 1.0/ SIM_SIZE_H;
+        this.m_dx = dx;
+        this.m_difAlpha_prec = dx * dx / this.m_viscosity;
     }
 
     public onFrame(ts: number) {
@@ -167,29 +166,58 @@ export class StableFluids {
             this.InitSimulator();
             return;
         }
-
         if (this.m_lastTimestamp == 0.0) {
             this.m_lastTimestamp = ts;
             return;
         }
-        let deltaTime = ts - this.m_lastTimestamp;
+        let deltaTime = (ts - this.m_lastTimestamp)/1000.0;
         this.m_lastTimestamp = ts;
 
-
-        let gl = this.gl;
+        var gl = this.gl;
 
         //gl.clearColor(1,0,0,1);
-        this.Clear();
+        //this.Clear();
 
-
-
-        this.DrawTexture(this.m_texImage,null,null,this.m_programDefault,null);
+        //this.DrawTexture(this.m_colRT1,null,null,this.m_programDefault,null);
 
         //Do simulation
 
         //Advection
+        this.SetRenderTarget(this.m_texV2);
+        this.DrawTexture(this.m_texV1,null,null,this.m_programAdvect,(p)=>{
+            let wgl = gl;
+            gl.uniform1f(p.UnifDeltaTime,deltaTime);
+        });
 
+        //Diffuse setup
+        let dif_alpha = this.m_difAlpha_prec / deltaTime;
+        let alpha = dif_alpha;
+        let beta = alpha + 4;
+
+        //copy v2 to v1
+        this.RenderToTexture(this.m_texV2,this.m_texV1);
+
+        for(let i=0;i<1;i++){
+            this.SetRenderTarget(this.m_texV3);
+            this.DrawTexture(this.m_texV2,this.m_texV1,null,this.m_programJacobi2D,(p)=>{
+                let wgl = gl;
+                wgl.uniform1f(p.UnifAlpha,alpha);
+                wgl.uniform1f(p.UnifBeta,beta);
+            })
+
+            this.SetRenderTarget(this.m_texV2);
+            this.DrawTexture(this.m_texV3,this.m_texV1,null,this.m_programJacobi2D,(p)=>{
+                let wgl = gl;
+                wgl.uniform1f(p.UnifAlpha,alpha);
+                wgl.uniform1f(p.UnifBeta,beta);
+            })
+        }
+
+        this.ResetFrameBuffer();
+        this.DrawTextureDefault(this.m_texV2);
+        
     }
+
 
     private Clear(){
         let gl = this.gl;
@@ -217,7 +245,11 @@ export class StableFluids {
         this.DrawTexture(src,null,null,this.m_programDefault,null);
     }
 
-    private DrawTexture(tex0:WebGLTexture,tex1?:WebGLTexture,tex2?:WebGLTexture,program?:ShaderProgram,setUniform?:(p:WebGLProgram)=>void){
+    private DrawTextureDefault(tex0:WebGLTexture){
+        this.DrawTexture(tex0,null,null,this.m_programDefault,null);
+    }
+
+    private DrawTexture(tex0:WebGLTexture,tex1?:WebGLTexture,tex2?:WebGLTexture,program?:ShaderProgram,setUniform?:(p:ShaderProgram)=>void){
         if(program == null) program = this.m_programDefault;
 
         let gl = this.gl;
@@ -225,18 +257,18 @@ export class StableFluids {
         gl.useProgram(program.Program);
 
         if(tex0 != null){
-            gl.bindTexture(gl.TEXTURE_2D,tex0);
             gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D,tex0);
             gl.uniform1i(program.UnifSampler0,0);
         }
         if(tex1 != null){
-            gl.bindTexture(gl.TEXTURE_2D,tex1);
             gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D,tex1);
             gl.uniform1i(program.UnifSampler1,1);
         }
         if(tex2 != null){
-            gl.bindTexture(gl.TEXTURE_2D,tex2);
             gl.activeTexture(gl.TEXTURE2);
+            gl.bindTexture(gl.TEXTURE_2D,tex2);
             gl.uniform1i(program.UnifSampler2,2);
         }
 
@@ -248,12 +280,12 @@ export class StableFluids {
         
     }
 
-    private CreateTexture(internalFormat: number, format: number, width: number, height: number, type: number): WebGLTexture {
+    private CreateTexture(internalFormat: number, width: number, height: number): WebGLTexture {
         let gl = this.gl;
 
         let tex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,256,256,0,gl.RGB,gl.UNSIGNED_BYTE,null);
+        gl.texStorage2D(gl.TEXTURE_2D,1,internalFormat,width,height);
         gl.generateMipmap(gl.TEXTURE_2D);
 
         return tex;
@@ -295,6 +327,12 @@ class ShaderProgram {
     public UnifSampler1: WebGLUniformLocation;
     public UnifSampler2: WebGLUniformLocation;
 
+    public UnifDeltaTime: WebGLUniformLocation;
+
+    //Jacobi2
+    public UnifAlpha: WebGLUniformLocation;
+    public UnifBeta:WebGLUniformLocation;
+
     private constructor(gl: WebGL2RenderingContext, program: WebGLProgram) {
         this.Program = program;
 
@@ -321,6 +359,11 @@ class ShaderProgram {
         this.UnifSampler0 = this.Unifroms['uSampler'];
         this.UnifSampler1 = this.Unifroms['uSampler1'];
         this.UnifSampler2 = this.Unifroms['uSampler2'];
+
+        this.UnifDeltaTime = this.Unifroms['uDeltaTime'];
+
+        this.UnifAlpha = this.Unifroms['uAlpha'];
+        this.UnifBeta = this.Unifroms['uBeta'];
     }
 
     public static LoadShader(gl: WebGL2RenderingContext, vsource: string, psource: string) {

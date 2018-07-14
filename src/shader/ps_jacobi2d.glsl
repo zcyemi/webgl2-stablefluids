@@ -2,8 +2,8 @@
 precision mediump float;
 in vec2 vUV;
 
-uniform sampler2D uSampler; //2D
-uniform sampler2D uSampler1;//2D
+uniform sampler2D uSampler; //2D X2
+uniform sampler2D uSampler1;//2D B2
 
 uniform float uAlpha;
 uniform float uBeta;
