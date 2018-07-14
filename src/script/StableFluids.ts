@@ -32,14 +32,18 @@ export class StableFluids {
     private m_textureLoaded: boolean = false;
     private m_lastTimestamp: number = 0;
 
-    private m_mouseX: number = 0;
-    private m_mouseY: number = 0;
-
     private m_inputX:number = 0;
     private m_inputY:number = 0;
 
+    private m_inputX_pre:number = 0;
+    private m_inputY_pre:number = 0;
+
+    private m_inputOnDrag:boolean = false;
+
     private m_mouseMoved:boolean = false;
     private m_mouseDown:boolean = false;
+
+
 
 
     public constructor(canvas: HTMLCanvasElement) {
@@ -52,17 +56,31 @@ export class StableFluids {
 
         canvas.addEventListener('mousemove', this.EvtOnMouseMove.bind(this), false);
         canvas.addEventListener('mousedown',this.EvtOnMouseDown.bind(this),false);
+        canvas.addEventListener('mouseup',this.EvtOnMouseUp.bind(this),false);
+        canvas.addEventListener('mouseleave',this.EvtOnMouseLeave.bind(this),false);
 
         this.InitGL();
     }
 
+    private EvtOnMouseUp(e:MouseEvent){
+        this.m_inputOnDrag = false;
+        this.m_mouseDown = false;
+    }
+
+    private EvtOnMouseLeave(e:MouseEvent){
+        this.m_inputOnDrag = false;
+        this.m_mouseDown = false;
+    }
+
     private EvtOnMouseDown(e:MouseEvent){
         this.m_mouseDown = true;
+        this.m_inputOnDrag = true;
     }
 
     private EvtOnMouseMove(e: MouseEvent) {
-        this.m_mouseX = e.offsetX;
-        this.m_mouseY = e.offsetY;
+
+        this.m_inputX_pre = this.m_inputX;
+        this.m_inputY_pre = this.m_inputY;
 
         this.m_inputX = e.offsetX / SIM_SIZE_H;
         this.m_inputY = 1.0 - e.offsetY / SIM_SIZE_H;
@@ -235,10 +253,17 @@ export class StableFluids {
 
         let forceX = 0;
         let forceY = 0;
-        if(this.m_mouseDown){
+
+        let force = this.m_force;
+        if(this.m_inputOnDrag){
+            forceX = force *(this.m_inputX - this.m_inputX_pre);
+            forceY = force *(this.m_inputY - this.m_inputY_pre);
+        }
+        else if(this.m_mouseDown){
+            force *=0.1;
             let rvec = this.RandomVecIdentity();
-            forceX = this.m_force * rvec[0];
-            forceY = this.m_force * rvec[1];
+            forceX = force * rvec[0];
+            forceY = force * rvec[1];
             this.m_mouseDown = false;
         }
 

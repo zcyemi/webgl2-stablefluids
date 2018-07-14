@@ -12,6 +12,5 @@ void main(){
     //color advection
     vec2 delta = texture(uSampler1,vUV).xy  * uDeltaTime;
     vec3 color =texture(uSampler,vUV - delta).xyz;
-
     fragColor = color;
 }
