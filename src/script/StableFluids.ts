@@ -1,4 +1,4 @@
-import { GLSL_VS_DEFAULT, GLSL_PS_ADVECT, GLSL_PS_FORCE, GLSL_PS_JACOBI1D, GLSL_PS_JACOBI2D, GLSL_PS_PROJSETUP, GLSL_PS_PROJFINISH, GLSL_PS_DEFAULT, GLSL_PS_COLOR } from "./ShaderLibs";
+import { GLSL_VS_DEFAULT, GLSL_PS_ADVECT, GLSL_PS_FORCE, GLSL_PS_JACOBI1D, GLSL_PS_JACOBI2D, GLSL_PS_PROJSETUP, GLSL_PS_PROJFINISH, GLSL_PS_DEFAULT, GLSL_PS_COLOR, GLSL_PS_FLUID } from "./ShaderLibs";
 
 
 const SIM_SIZE_W: number = 512;
@@ -23,6 +23,8 @@ export class StableFluids {
     private m_programJacobi2D: ShaderProgram;
     private m_programColor: ShaderProgram;
     private m_programDefault: ShaderProgram;
+
+    private m_programFluid: ShaderProgram;
 
     private m_texImage: WebGLTexture;
 
@@ -96,6 +98,9 @@ export class StableFluids {
         this.m_programColor = ShaderProgram.LoadShader(gl, GLSL_VS_DEFAULT, GLSL_PS_COLOR);
         this.m_programDefault = ShaderProgram.LoadShader(gl, GLSL_VS_DEFAULT, GLSL_PS_DEFAULT);
 
+
+        this.m_programFluid = ShaderProgram.LoadShader(gl,GLSL_VS_DEFAULT,GLSL_PS_FLUID);
+
         this.m_programAdvect = ShaderProgram.LoadShader(gl, GLSL_VS_DEFAULT, GLSL_PS_ADVECT);
         this.m_programForce = ShaderProgram.LoadShader(gl, GLSL_VS_DEFAULT, GLSL_PS_FORCE);
         this.m_programJacobi1D = ShaderProgram.LoadShader(gl, GLSL_VS_DEFAULT, GLSL_PS_JACOBI1D);
@@ -153,15 +158,15 @@ export class StableFluids {
         if(!this.m_textureLoaded) return;
 
         let gl = this.gl;
-        this.m_texV1 = this.CreateTexture(gl.RG32F,SIM_SIZE_W,SIM_SIZE_H);
-        this.m_texV2 = this.CreateTexture(gl.RG32F,SIM_SIZE_W,SIM_SIZE_H);
-        this.m_texV3 = this.CreateTexture(gl.RG32F,SIM_SIZE_W,SIM_SIZE_H);
+        this.m_texV1 = this.CreateTexture(gl.RG32F,SIM_SIZE_W,SIM_SIZE_H,true,false);
+        this.m_texV2 = this.CreateTexture(gl.RG32F,SIM_SIZE_W,SIM_SIZE_H,true,false);
+        this.m_texV3 = this.CreateTexture(gl.RG32F,SIM_SIZE_W,SIM_SIZE_H,true,false);
 
-        this.m_texP1 = this.CreateTexture(gl.R32F,SIM_SIZE_W,SIM_SIZE_H);
-        this.m_texP2 = this.CreateTexture(gl.R32F,SIM_SIZE_W,SIM_SIZE_H);
+        this.m_texP1 = this.CreateTexture(gl.R32F,SIM_SIZE_W,SIM_SIZE_H,true,false);
+        this.m_texP2 = this.CreateTexture(gl.R32F,SIM_SIZE_W,SIM_SIZE_H,true,false);
         
-        this.m_colRT1 = this.CreateTexture(gl.RGBA4,SIM_SIZE_W,SIM_SIZE_H);
-        this.m_colRT2 = this.CreateTexture(gl.RGBA4,SIM_SIZE_W,SIM_SIZE_H);
+        this.m_colRT1 = this.CreateTexture(gl.RGBA4,SIM_SIZE_W,SIM_SIZE_H,true,true);
+        this.m_colRT2 = this.CreateTexture(gl.RGBA4,SIM_SIZE_W,SIM_SIZE_H,true,true);
 
         this.RenderToTexture(this.m_texImage,this.m_colRT1);
         this.ResetFrameBuffer();
@@ -228,9 +233,12 @@ export class StableFluids {
 
         //add external force
 
-        let force = 0;
+        let forceX = 0;
+        let forceY = 0;
         if(this.m_mouseDown){
-            force = this.m_force;
+            let rvec = this.RandomVecIdentity();
+            forceX = this.m_force * rvec[0];
+            forceY = this.m_force * rvec[1];
             this.m_mouseDown = false;
         }
 
@@ -239,7 +247,7 @@ export class StableFluids {
             let wgl = gl;
             wgl.uniform1f(p.UnifForceExponent,this.m_exponent);
             wgl.uniform2f(p.UnifForceOrigin,this.m_inputX,this.m_inputY);
-            wgl.uniform2f(p.UnifForceVector,force,0);
+            wgl.uniform2f(p.UnifForceVector,forceX,forceY);
         });
 
 
@@ -278,14 +286,31 @@ export class StableFluids {
 
 
         //Use velocity to carry color
-        
+
+        this.SetRenderTarget(this.m_colRT2);
+        this.DrawTexture(this.m_colRT1,this.m_texV1,null,this.m_programFluid,(p)=>{
+            let wgl = gl;
+            wgl.uniform1f(p.UnifDeltaTime,deltaTime);
+        })
 
 
         this.ResetFrameBuffer();
-        this.DrawTextureDefault(this.m_texV1);
+        this.DrawTextureDefault(this.m_colRT2);
 
+        //swrap colorbuffer
+        let temp = this.m_colRT1;
+        this.m_colRT1 = this.m_colRT2;
+        this.m_colRT2 = temp;
 
-        
+    }
+
+    private RandomVecIdentity():number[]{
+
+        let t = Math.random()*Math.PI *2;
+        let x = Math.sin(t);
+        let y = Math.cos(t);
+
+        return [x,y];
     }
 
 
@@ -360,13 +385,21 @@ export class StableFluids {
         
     }
 
-    private CreateTexture(internalFormat: number, width: number, height: number): WebGLTexture {
+    private CreateTexture(internalFormat: number, width: number, height: number,linear:boolean = false,mipmap:boolean = false): WebGLTexture {
         let gl = this.gl;
 
         let tex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, tex);
         gl.texStorage2D(gl.TEXTURE_2D,1,internalFormat,width,height);
-        gl.generateMipmap(gl.TEXTURE_2D);
+        
+        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,linear? gl.LINEAR: gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER, linear?( mipmap? gl.LINEAR_MIPMAP_LINEAR:gl.LINEAR): gl.NEAREST);
+
+        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+
+        if(mipmap)
+            gl.generateMipmap(gl.TEXTURE_2D);
 
         return tex;
     }
