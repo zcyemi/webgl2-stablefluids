@@ -33,7 +33,11 @@ export class StableFluids {
     private m_mouseX: number = 0;
     private m_mouseY: number = 0;
 
+    private m_inputX:number = 0;
+    private m_inputY:number = 0;
+
     private m_mouseMoved:boolean = false;
+    private m_mouseDown:boolean = false;
 
 
     public constructor(canvas: HTMLCanvasElement) {
@@ -44,15 +48,23 @@ export class StableFluids {
             return;
         }
 
-        canvas.addEventListener('mousemove', this.EvtOnMouseMove, false);
-
+        canvas.addEventListener('mousemove', this.EvtOnMouseMove.bind(this), false);
+        canvas.addEventListener('mousedown',this.EvtOnMouseDown.bind(this),false);
 
         this.InitGL();
+    }
+
+    private EvtOnMouseDown(e:MouseEvent){
+        this.m_mouseDown = true;
     }
 
     private EvtOnMouseMove(e: MouseEvent) {
         this.m_mouseX = e.offsetX;
         this.m_mouseY = e.offsetY;
+
+        this.m_inputX = e.offsetX / SIM_SIZE_H;
+        this.m_inputY = 1.0 - e.offsetY / SIM_SIZE_H;
+        
     }
 
     private InitGL() {
@@ -151,7 +163,7 @@ export class StableFluids {
         this.m_colRT1 = this.CreateTexture(gl.RGBA4,SIM_SIZE_W,SIM_SIZE_H);
         this.m_colRT2 = this.CreateTexture(gl.RGBA4,SIM_SIZE_W,SIM_SIZE_H);
 
-        this.RenderToTexture(this.m_texImage,this.m_texV1);
+        //this.RenderToTexture(this.m_texImage,this.m_texV2);
         this.ResetFrameBuffer();
 
         this.m_inited = true;
@@ -197,6 +209,7 @@ export class StableFluids {
         //copy v2 to v1
         this.RenderToTexture(this.m_texV2,this.m_texV1);
 
+        //jacobi iteration 2D
         for(let i=0;i<1;i++){
             this.SetRenderTarget(this.m_texV3);
             this.DrawTexture(this.m_texV2,this.m_texV1,null,this.m_programJacobi2D,(p)=>{
@@ -213,8 +226,32 @@ export class StableFluids {
             })
         }
 
+        //add external force
+
+        let force = 0;
+        if(this.m_mouseDown){
+            force = this.m_force;
+            //this.m_mouseDown = false;
+        }
+
+        this.SetRenderTarget(this.m_texV3);
+        this.DrawTexture(this.m_texV2,null,null,this.m_programForce,(p)=>{
+            let wgl = gl;
+            wgl.uniform1f(p.UnifForceExponent,this.m_exponent);
+            wgl.uniform2f(p.UnifForceOrigin,this.m_inputX,this.m_inputY);
+            wgl.uniform2f(p.UnifForceVector,force,0);
+        });
+
+        //this.RenderToTexture(this.m_texV3,this.m_texV2);
+
+
+        this.RenderToTexture(this.m_texV3,this.m_texV1);
+
+
         this.ResetFrameBuffer();
-        this.DrawTextureDefault(this.m_texV2);
+        this.DrawTextureDefault(this.m_texV3);
+
+
         
     }
 
@@ -333,6 +370,11 @@ class ShaderProgram {
     public UnifAlpha: WebGLUniformLocation;
     public UnifBeta:WebGLUniformLocation;
 
+    //AddForce
+    public UnifForceOrigin: WebGLUniformLocation;
+    public UnifForceVector:WebGLUniformLocation;
+    public UnifForceExponent:WebGLUniformLocation;
+
     private constructor(gl: WebGL2RenderingContext, program: WebGLProgram) {
         this.Program = program;
 
@@ -364,6 +406,10 @@ class ShaderProgram {
 
         this.UnifAlpha = this.Unifroms['uAlpha'];
         this.UnifBeta = this.Unifroms['uBeta'];
+
+        this.UnifForceOrigin = this.Unifroms['uForceOrigin'];
+        this.UnifForceExponent = this.Unifroms['uForceExponent'];
+        this.UnifForceVector =this.Unifroms['uForceVector'];
     }
 
     public static LoadShader(gl: WebGL2RenderingContext, vsource: string, psource: string) {
