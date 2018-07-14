@@ -1,4 +1,4 @@
-import { GLSL_VS_DEFAULT, GLSL_PS_ADVECT, GLSL_PS_FORCE, GLSL_PS_JACOBI1D, GLSL_PS_JACOBI2D, GLSL_PS_PROJSETUP, GLSL_PS_PROJFINISH, GLSL_PS_DEFAULT, GLSL_PS_COLOR, GLSL_PS_FLUID } from "./ShaderLibs";
+import { GLSL_VS_DEFAULT, GLSL_PS_ADVECT, GLSL_PS_FORCE, GLSL_PS_JACOBI1D, GLSL_PS_JACOBI2D, GLSL_PS_PROJSETUP, GLSL_PS_PROJFINISH, GLSL_PS_DEFAULT, GLSL_PS_COLOR, GLSL_PS_FLUID, GLSL_VS_DEFAULT_FLIP } from "./ShaderLibs";
 
 
 const SIM_SIZE_W: number = 512;
@@ -22,7 +22,9 @@ export class StableFluids {
     private m_programJacobi1D: ShaderProgram;
     private m_programJacobi2D: ShaderProgram;
     private m_programColor: ShaderProgram;
+
     private m_programDefault: ShaderProgram;
+    private m_programDefaultFlipY: ShaderProgram;
 
     private m_programFluid: ShaderProgram;
 
@@ -115,6 +117,7 @@ export class StableFluids {
         //shader programs
         this.m_programColor = ShaderProgram.LoadShader(gl, GLSL_VS_DEFAULT, GLSL_PS_COLOR);
         this.m_programDefault = ShaderProgram.LoadShader(gl, GLSL_VS_DEFAULT, GLSL_PS_DEFAULT);
+        this.m_programDefaultFlipY  =ShaderProgram.LoadShader(gl,GLSL_VS_DEFAULT_FLIP,GLSL_PS_DEFAULT);
 
 
         this.m_programFluid = ShaderProgram.LoadShader(gl,GLSL_VS_DEFAULT,GLSL_PS_FLUID);
@@ -134,9 +137,9 @@ export class StableFluids {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.m_bufferIndicesQuad);
 
         gl.enableVertexAttribArray(this.m_programColor.AttrPosition);
-        gl.vertexAttribPointer(this.m_programColor.AttrPosition, 2, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(this.m_programColor.AttrPosition, 2, gl.FLOAT, false,0, 0);
         gl.enableVertexAttribArray(this.m_programColor.AttrUV);
-        gl.vertexAttribPointer(this.m_programColor.AttrUV, 2, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(this.m_programColor.AttrUV, 2, gl.FLOAT, false,  0,0);
 
         gl.bindVertexArray(null);
         this.m_vaoQuad = vao;
@@ -186,7 +189,7 @@ export class StableFluids {
         this.m_colRT1 = this.CreateTexture(gl.RGBA4,SIM_SIZE_W,SIM_SIZE_H,true,true);
         this.m_colRT2 = this.CreateTexture(gl.RGBA4,SIM_SIZE_W,SIM_SIZE_H,true,true);
 
-        this.RenderToTexture(this.m_texImage,this.m_colRT1);
+        this.RenderToTexture(this.m_texImage,this.m_colRT1,true);
         this.ResetFrameBuffer();
 
         this.m_inited = true;
@@ -210,8 +213,6 @@ export class StableFluids {
 
         var gl = this.gl;
 
-        //gl.clearColor(1,0,0,1);
-        //this.Clear();
 
         //this.DrawTexture(this.m_colRT1,null,null,this.m_programDefault,null);
 
@@ -355,18 +356,18 @@ export class StableFluids {
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
     }
 
-    private RenderToTexture(src:WebGLTexture,dest:WebGLTexture){
+    private RenderToTexture(src:WebGLTexture,dest:WebGLTexture,flipY:boolean = false){
         if(src === dest){
             console.error('can not render to the same texture');
             return;
         }
 
         this.SetRenderTarget(dest);
-        this.DrawTexture(src,null,null,this.m_programDefault,null);
+        this.DrawTextureDefault(src,flipY);
     }
 
-    private DrawTextureDefault(tex0:WebGLTexture){
-        this.DrawTexture(tex0,null,null,this.m_programDefault,null);
+    private DrawTextureDefault(tex0:WebGLTexture,flipY:boolean = false){
+        this.DrawTexture(tex0,null,null,flipY? this.m_programDefaultFlipY : this.m_programDefault,null);
     }
 
     private DrawColor(color:number[]){
