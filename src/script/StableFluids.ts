@@ -163,7 +163,7 @@ export class StableFluids {
         this.m_colRT1 = this.CreateTexture(gl.RGBA4,SIM_SIZE_W,SIM_SIZE_H);
         this.m_colRT2 = this.CreateTexture(gl.RGBA4,SIM_SIZE_W,SIM_SIZE_H);
 
-        //this.RenderToTexture(this.m_texImage,this.m_texV2);
+        this.RenderToTexture(this.m_texImage,this.m_colRT1);
         this.ResetFrameBuffer();
 
         this.m_inited = true;
@@ -210,7 +210,7 @@ export class StableFluids {
         this.RenderToTexture(this.m_texV2,this.m_texV1);
 
         //jacobi iteration 2D
-        for(let i=0;i<1;i++){
+        for(let i=0;i<20;i++){
             this.SetRenderTarget(this.m_texV3);
             this.DrawTexture(this.m_texV2,this.m_texV1,null,this.m_programJacobi2D,(p)=>{
                 let wgl = gl;
@@ -231,7 +231,7 @@ export class StableFluids {
         let force = 0;
         if(this.m_mouseDown){
             force = this.m_force;
-            //this.m_mouseDown = false;
+            this.m_mouseDown = false;
         }
 
         this.SetRenderTarget(this.m_texV3);
@@ -242,14 +242,47 @@ export class StableFluids {
             wgl.uniform2f(p.UnifForceVector,force,0);
         });
 
-        //this.RenderToTexture(this.m_texV3,this.m_texV2);
+
+        //Proj setup
+
+        this.SetRenderTarget(this.m_texV2);
+        this.DrawTexture(this.m_texV3,null,null,this.m_programProjSetup,null);
+
+        //set P1 to 0
+        this.SetRenderTarget(this.m_texP1);
+        this.DrawColor([0,0,0,0]);
+
+        //Jacobi 1D
+        let dx = this.m_dx;
+        var alpha1d  = -dx * dx;
+        var beta1d = 4;
+        for(var i=0;i<20;i++){
+            this.SetRenderTarget(this.m_texP2);
+            this.DrawTexture(this.m_texP1,this.m_texV2,null,this.m_programJacobi1D,(p)=>{
+                let wgl = gl;
+                wgl.uniform1f(p.UnifAlpha,alpha1d);
+                wgl.uniform1f(p.UnifBeta,beta1d);
+            });
+
+            this.SetRenderTarget(this.m_texP1);
+            this.DrawTexture(this.m_texP2,this.m_texV2,null,this.m_programJacobi1D,(p)=>{
+                let wgl = gl;
+                wgl.uniform1f(p.UnifAlpha,alpha1d);
+                wgl.uniform1f(p.UnifBeta,beta1d);
+            });
+        }
+
+        //ProjFinish
+        this.SetRenderTarget(this.m_texV1);
+        this.DrawTexture(this.m_texP1,this.m_texV3,null,this.m_programProjFinish,null);
 
 
-        this.RenderToTexture(this.m_texV3,this.m_texV1);
+        //Use velocity to carry color
+        
 
 
         this.ResetFrameBuffer();
-        this.DrawTextureDefault(this.m_texV3);
+        this.DrawTextureDefault(this.m_texV1);
 
 
         
@@ -284,6 +317,16 @@ export class StableFluids {
 
     private DrawTextureDefault(tex0:WebGLTexture){
         this.DrawTexture(tex0,null,null,this.m_programDefault,null);
+    }
+
+    private DrawColor(color:number[]){
+        let gl = this.gl;
+        gl.bindVertexArray(this.m_vaoQuad);
+        gl.useProgram(this.m_programColor.Program);
+
+        gl.uniform4fv(this.m_programColor.UnifColor,color);
+        gl.drawElements(gl.TRIANGLES,6,gl.UNSIGNED_SHORT,0);
+
     }
 
     private DrawTexture(tex0:WebGLTexture,tex1?:WebGLTexture,tex2?:WebGLTexture,program?:ShaderProgram,setUniform?:(p:ShaderProgram)=>void){

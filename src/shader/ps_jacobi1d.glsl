@@ -1,8 +1,8 @@
 #version 300 es
 precision highp float;
 in vec2 vUV;
-uniform sampler2D uSampler; //1D
-uniform sampler2D uSampler1;//1D
+uniform sampler2D uSampler; //1D X1
+uniform sampler2D uSampler1;//1D B1
 
 uniform float uAlpha;
 uniform float uBeta;
