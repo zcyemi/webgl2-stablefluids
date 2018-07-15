@@ -16,7 +16,7 @@ void main(){
     float p3 = texture(uSampler,vUV - vec2(0,voff)).x;
     float p4 = texture(uSampler,vUV + vec2(0,voff)).x;
 
-    vec2 u = texture(uSampler1,vUV).xy - vec2(p2-p1,p4-p3) /2.0;
+    vec2 u = texture(uSampler1,vUV).xy - vec2(p2-p1,p4-p3) /(2.0 * voff);
 
     fragColor = u;
 }

@@ -220,8 +220,8 @@ export class StableFluids {
         var gl = this.gl;
 
 
-        let debug_Velocity:boolean = true;
-        let debug_enableProj:boolean = false;
+        let debug_Velocity:boolean = false;
+        let debug_enableProj:boolean = true;
         let debug_enableDiffuse:boolean= true;
 
         //Do simulation
@@ -260,7 +260,7 @@ export class StableFluids {
             }
         }
 
-        //add external force
+        //add external force V2->V3
 
         let forceX = 0;
         let forceY = 0;
@@ -287,15 +287,28 @@ export class StableFluids {
         });
 
 
-        //Proj setup
+        this.RenderToTexture(this.m_texV3,this.m_texV1);
+
+
+        //Proj setup V3->V1
 
         if(debug_enableProj){
             this.SetRenderTarget(this.m_texV2);
+
+            //V2(divergence of Velocity)
             this.DrawTexture(this.m_texV3,null,null,this.m_programProjSetup,null);
+
+            // this.ResetFrameBuffer();
+            // this.DrawTextureDefault(this.m_texV2);
     
+            // return;
+
             //set P1 to 0
             this.SetRenderTarget(this.m_texP1);
             this.DrawColor([0,0,0,0]);
+
+
+    
     
             //Jacobi 1D
             let dx = this.m_dx;
