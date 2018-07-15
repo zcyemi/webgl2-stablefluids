@@ -9,4 +9,4 @@ Migrate from [keijiro/StableFluids](https://github.com/keijiro/StableFluids).
 ![gif](https://github.com/soyemi/webgl2-stablefluids/blob/master/docs/fluids.gif)
 
 
-License MIT
+License CC0
