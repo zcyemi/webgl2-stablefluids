@@ -7,10 +7,10 @@ uniform sampler2D uSampler1; //Velocity texture RG32F
 uniform float uDeltaTime;
 
 
-out vec3 fragColor;
+out vec4 fragColor;
 void main(){
     //color advection
     vec2 delta = texture(uSampler1,vUV).xy  * uDeltaTime;
     vec3 color =texture(uSampler,vUV - delta).xyz;
-    fragColor = color;
+    fragColor = vec4(color,1.0);
 }

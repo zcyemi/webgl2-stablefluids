@@ -45,6 +45,9 @@ export class StableFluids {
     private m_mouseMoved:boolean = false;
     private m_mouseDown:boolean = false;
 
+    private m_canvasWidth:number;
+    private m_canvasHeight:number;
+
 
 
 
@@ -55,6 +58,9 @@ export class StableFluids {
             throw new Error("webgl2 not supported!");
             return;
         }
+
+        this.m_canvasWidth = canvas.width;
+        this.m_canvasHeight = canvas.height;
 
         canvas.addEventListener('mousemove', this.EvtOnMouseMove.bind(this), false);
         canvas.addEventListener('mousedown',this.EvtOnMouseDown.bind(this),false);
@@ -170,7 +176,7 @@ export class StableFluids {
 
     private m_dx: number;
     private m_difAlpha_prec:number;
-    private m_viscosity:number = 0.002478;
+    private m_viscosity:number = 0.000001;
     private m_force:number = 300;
     private m_exponent:number = 200;
 
@@ -186,8 +192,8 @@ export class StableFluids {
         this.m_texP1 = this.CreateTexture(gl.R32F,SIM_SIZE_W,SIM_SIZE_H,true,false);
         this.m_texP2 = this.CreateTexture(gl.R32F,SIM_SIZE_W,SIM_SIZE_H,true,false);
         
-        this.m_colRT1 = this.CreateTexture(gl.RGBA4,SIM_SIZE_W,SIM_SIZE_H,true,true);
-        this.m_colRT2 = this.CreateTexture(gl.RGBA4,SIM_SIZE_W,SIM_SIZE_H,true,true);
+        this.m_colRT1 = this.CreateTexture(gl.RGBA8,SIM_SIZE_W,SIM_SIZE_H,true,true);
+        this.m_colRT2 = this.CreateTexture(gl.RGBA8,SIM_SIZE_W,SIM_SIZE_H,true,true);
 
         this.RenderToTexture(this.m_texImage,this.m_colRT1,true);
         this.ResetFrameBuffer();
@@ -214,7 +220,9 @@ export class StableFluids {
         var gl = this.gl;
 
 
-        //this.DrawTexture(this.m_colRT1,null,null,this.m_programDefault,null);
+        let debug_Velocity:boolean = true;
+        let debug_enableProj:boolean = false;
+        let debug_enableDiffuse:boolean= true;
 
         //Do simulation
 
@@ -226,28 +234,30 @@ export class StableFluids {
         });
 
         //Diffuse setup
-        let dif_alpha = this.m_difAlpha_prec / deltaTime;
+        let dif_alpha = this.m_difAlpha_prec / deltaTime;  //0.1
         let alpha = dif_alpha;
         let beta = alpha + 4;
+        if(debug_enableDiffuse){
+            
+            //copy v2 to v1
+            this.RenderToTexture(this.m_texV2,this.m_texV1);
 
-        //copy v2 to v1
-        this.RenderToTexture(this.m_texV2,this.m_texV1);
+            //jacobi iteration 2D
+            for(let i=0;i<20;i++){
+                this.SetRenderTarget(this.m_texV3);
+                this.DrawTexture(this.m_texV2,this.m_texV1,null,this.m_programJacobi2D,(p)=>{
+                    let wgl = gl;
+                    wgl.uniform1f(p.UnifAlpha,alpha);
+                    wgl.uniform1f(p.UnifBeta,beta);
+                })
 
-        //jacobi iteration 2D
-        for(let i=0;i<20;i++){
-            this.SetRenderTarget(this.m_texV3);
-            this.DrawTexture(this.m_texV2,this.m_texV1,null,this.m_programJacobi2D,(p)=>{
-                let wgl = gl;
-                wgl.uniform1f(p.UnifAlpha,alpha);
-                wgl.uniform1f(p.UnifBeta,beta);
-            })
-
-            this.SetRenderTarget(this.m_texV2);
-            this.DrawTexture(this.m_texV3,this.m_texV1,null,this.m_programJacobi2D,(p)=>{
-                let wgl = gl;
-                wgl.uniform1f(p.UnifAlpha,alpha);
-                wgl.uniform1f(p.UnifBeta,beta);
-            })
+                this.SetRenderTarget(this.m_texV2);
+                this.DrawTexture(this.m_texV3,this.m_texV1,null,this.m_programJacobi2D,(p)=>{
+                    let wgl = gl;
+                    wgl.uniform1f(p.UnifAlpha,alpha);
+                    wgl.uniform1f(p.UnifBeta,beta);
+                })
+            }
         }
 
         //add external force
@@ -279,54 +289,70 @@ export class StableFluids {
 
         //Proj setup
 
-        this.SetRenderTarget(this.m_texV2);
-        this.DrawTexture(this.m_texV3,null,null,this.m_programProjSetup,null);
-
-        //set P1 to 0
-        this.SetRenderTarget(this.m_texP1);
-        this.DrawColor([0,0,0,0]);
-
-        //Jacobi 1D
-        let dx = this.m_dx;
-        var alpha1d  = -dx * dx;
-        var beta1d = 4;
-        for(var i=0;i<20;i++){
-            this.SetRenderTarget(this.m_texP2);
-            this.DrawTexture(this.m_texP1,this.m_texV2,null,this.m_programJacobi1D,(p)=>{
-                let wgl = gl;
-                wgl.uniform1f(p.UnifAlpha,alpha1d);
-                wgl.uniform1f(p.UnifBeta,beta1d);
-            });
-
+        if(debug_enableProj){
+            this.SetRenderTarget(this.m_texV2);
+            this.DrawTexture(this.m_texV3,null,null,this.m_programProjSetup,null);
+    
+            //set P1 to 0
             this.SetRenderTarget(this.m_texP1);
-            this.DrawTexture(this.m_texP2,this.m_texV2,null,this.m_programJacobi1D,(p)=>{
-                let wgl = gl;
-                wgl.uniform1f(p.UnifAlpha,alpha1d);
-                wgl.uniform1f(p.UnifBeta,beta1d);
-            });
+            this.DrawColor([0,0,0,0]);
+    
+            //Jacobi 1D
+            let dx = this.m_dx;
+            var alpha1d  = -dx * dx;
+            var beta1d = 4;
+            for(var i=0;i<20;i++){
+                this.SetRenderTarget(this.m_texP2);
+                this.DrawTexture(this.m_texP1,this.m_texV2,null,this.m_programJacobi1D,(p)=>{
+                    let wgl = gl;
+                    wgl.uniform1f(p.UnifAlpha,alpha1d);
+                    wgl.uniform1f(p.UnifBeta,beta1d);
+                });
+    
+                this.SetRenderTarget(this.m_texP1);
+                this.DrawTexture(this.m_texP2,this.m_texV2,null,this.m_programJacobi1D,(p)=>{
+                    let wgl = gl;
+                    wgl.uniform1f(p.UnifAlpha,alpha1d);
+                    wgl.uniform1f(p.UnifBeta,beta1d);
+                });
+            }
+    
+            //ProjFinish
+            this.SetRenderTarget(this.m_texV1);
+            this.DrawTexture(this.m_texP1,this.m_texV3,null,this.m_programProjFinish,null);
         }
-
-        //ProjFinish
-        this.SetRenderTarget(this.m_texV1);
-        this.DrawTexture(this.m_texP1,this.m_texV3,null,this.m_programProjFinish,null);
+        else{
+            this.RenderToTexture(this.m_texV3,this.m_texV1);
+        }
 
 
         //Use velocity to carry color
 
-        this.SetRenderTarget(this.m_colRT2);
-        this.DrawTexture(this.m_colRT1,this.m_texV1,null,this.m_programFluid,(p)=>{
-            let wgl = gl;
-            wgl.uniform1f(p.UnifDeltaTime,deltaTime);
-        })
+        if(debug_Velocity){
+            this.ResetFrameBuffer();
+            this.DrawTextureDefault(this.m_texV1);
+            return;
+        }
+        else{
+            this.SetRenderTarget(this.m_colRT2);
+            this.DrawTexture(this.m_colRT1, this.m_texV1, null, this.m_programFluid, (p) => {
+                let wgl = gl;
+                wgl.uniform1f(p.UnifDeltaTime, deltaTime);
+            })
 
 
-        this.ResetFrameBuffer();
-        this.DrawTextureDefault(this.m_colRT2);
+            this.ResetFrameBuffer();
+            this.DrawTextureDefault(this.m_colRT2);
 
-        //swrap colorbuffer
-        let temp = this.m_colRT1;
-        this.m_colRT1 = this.m_colRT2;
-        this.m_colRT2 = temp;
+            //swrap colorbuffer
+            let temp = this.m_colRT1;
+            this.m_colRT1 = this.m_colRT2;
+            this.m_colRT2 = temp;
+        }
+
+
+
+        
 
     }
 
