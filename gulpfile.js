@@ -12,6 +12,10 @@ gulp.task("build",()=>{
     BuildShader();
 });
 
+gulp.task("doc",()=>{
+    gulp.src('dist/**/*').pipe(gulp.dest('docs/'));
+});
+
 gulp.task("watch",()=>{
 
     BuildScript();
@@ -36,7 +40,7 @@ function BuildScript(){
     gulp.src('./src/script/**/*.ts').pipe(gulpts({
         module: 'amd',
         declaration: true,
-        outFile: 'stablefluids.js',
+        outFile: 'StableFluids.js',
         target: 'es5',
     }))
     .pipe(gulp.dest('./dist/'));
