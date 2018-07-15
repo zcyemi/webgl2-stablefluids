@@ -351,6 +351,15 @@ export class StableFluids {
             this.DrawTexture(this.m_colRT1, this.m_texV1, null, this.m_programFluid, (p) => {
                 let wgl = gl;
                 wgl.uniform1f(p.UnifDeltaTime, deltaTime);
+                wgl.uniform1f(p.UnifTime,ts/1000.0);
+                wgl.uniform1f(p.UnifForceExponent,this.m_exponent);
+                
+                if(this.m_inputOnDrag){
+                    wgl.uniform2f(p.UnifForceOrigin,this.m_inputX,this.m_inputY);
+                }
+                else{
+                    wgl.uniform2f(p.UnifForceOrigin,-10.0,-10.0);
+                }
             })
 
 
@@ -506,6 +515,7 @@ class ShaderProgram {
     public UnifSampler2: WebGLUniformLocation;
 
     public UnifDeltaTime: WebGLUniformLocation;
+    public UnifTime: WebGLUniformLocation;
 
     //Jacobi2
     public UnifAlpha: WebGLUniformLocation;
@@ -544,6 +554,7 @@ class ShaderProgram {
         this.UnifSampler2 = this.Unifroms['uSampler2'];
 
         this.UnifDeltaTime = this.Unifroms['uDeltaTime'];
+        this.UnifTime = this.Unifroms['uTime'];
 
         this.UnifAlpha = this.Unifroms['uAlpha'];
         this.UnifBeta = this.Unifroms['uBeta'];

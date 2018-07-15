@@ -17,7 +17,5 @@ void main(){
 
     vec2 pos = vUV;
     float amp = exp(-uForceExponent * distance(uForceOrigin,pos));
-
-    //fragColor = vec2(amp,amp);
     fragColor = col.xy + uForceVector * amp;
 }
