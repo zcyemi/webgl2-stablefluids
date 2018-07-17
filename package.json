@@ -17,15 +17,17 @@
   },
   "homepage": "https://github.com/soyemi/webgl2-stablefluids#readme",
   "devDependencies": {
+    "@types/node": "^10.5.2",
     "browser-sync": "^2.24.5",
     "gulp": "^3.9.1",
     "gulp-glsl": "^1.2.4",
     "gulp-sequence": "^1.0.0",
     "gulp-typescript": "^5.0.0-alpha.3",
     "through2": "^2.0.3",
-    "typescript": "^2.9.2"
+    "typescript": "^2.9.2",
+    "@types/webgl2": "0.0.4"
   },
   "dependencies": {
-    "@types/webgl2": "0.0.4"
+    "wglut": "0.0.1"
   }
 }

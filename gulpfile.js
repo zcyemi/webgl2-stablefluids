@@ -10,6 +10,8 @@ gulp.task("build",()=>{
     BuildScript();
     BuildTemplate();
     BuildShader();
+
+    gulp.src('./node_modules/wglut/dist/**.js').pipe(gulp.dest('./dist/'));
 });
 
 gulp.task("doc",()=>{
@@ -21,6 +23,7 @@ gulp.task("watch",()=>{
     BuildScript();
     BuildTemplate();
     BuildShader();
+    gulp.src('./node_modules/wglut/dist/**.js').pipe(gulp.dest('./dist/'));
 
     gulp.watch('./src/script/**/*.ts',BuildScript);
     gulp.watch('./src/template/**.*',BuildTemplate);
@@ -42,8 +45,11 @@ function BuildScript(){
         declaration: true,
         outFile: 'StableFluids.js',
         target: 'es5',
+        moduleResolution: 'node',
     }))
     .pipe(gulp.dest('./dist/'));
+
+    gulp.src('./node_modules/wglut/dist/**.js').pipe(gulp.dest('./dist/'));
 }
 
 function BuildTemplate(){
@@ -55,7 +61,6 @@ function BuildShader(){
     console.log('[sync shader]');
     gulp.src('./src/shader/*.glsl').pipe(gulpGLSLMerge('/src/script/ShaderLibs.ts'));
 }
-
 
 function gulpGLSLMerge(targetFile) {
     var tarFile = targetFile;
@@ -81,7 +86,6 @@ function gulpGLSLMerge(targetFile) {
         }
     });
 }
-
 function MergeShaderLibTs(fname, source, ts) {
     fname = fname.toString();
     if (fname.endsWith('.glsl')) fname = fname.substr(0, fname.length - 5);

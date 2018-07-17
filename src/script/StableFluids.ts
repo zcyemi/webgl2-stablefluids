@@ -1,5 +1,5 @@
 import { GLSL_VS_DEFAULT, GLSL_PS_ADVECT, GLSL_PS_FORCE, GLSL_PS_JACOBI1D, GLSL_PS_JACOBI2D, GLSL_PS_PROJSETUP, GLSL_PS_PROJFINISH, GLSL_PS_DEFAULT, GLSL_PS_COLOR, GLSL_PS_FLUID, GLSL_VS_DEFAULT_FLIP } from "./ShaderLibs";
-
+import {GLContext, GLProgram} from 'wglut';
 
 const SIM_SIZE_W: number = 512;
 const SIM_SIZE_H: number = 512;
@@ -7,6 +7,7 @@ const SIM_SIZE_H: number = 512;
 export class StableFluids {
 
     private gl: WebGL2RenderingContext;
+    private glctx: GLContext;
 
     private m_frameBuffer: WebGLFramebuffer;
 
@@ -15,18 +16,18 @@ export class StableFluids {
 
     private m_vaoQuad: WebGLVertexArrayObject;
 
-    private m_programAdvect: ShaderProgram;
-    private m_programForce: ShaderProgram;
-    private m_programProjSetup: ShaderProgram;
-    private m_programProjFinish: ShaderProgram;
-    private m_programJacobi1D: ShaderProgram;
-    private m_programJacobi2D: ShaderProgram;
-    private m_programColor: ShaderProgram;
+    private m_programAdvect: GLProgram;
+    private m_programForce: GLProgram;
+    private m_programProjSetup: GLProgram;
+    private m_programProjFinish: GLProgram;
+    private m_programJacobi1D: GLProgram;
+    private m_programJacobi2D: GLProgram;
+    private m_programColor: GLProgram;
 
-    private m_programDefault: ShaderProgram;
-    private m_programDefaultFlipY: ShaderProgram;
+    private m_programDefault: GLProgram;
+    private m_programDefaultFlipY: GLProgram;
 
-    private m_programFluid: ShaderProgram;
+    private m_programFluid: GLProgram;
 
     private m_texImage: WebGLTexture;
 
@@ -50,14 +51,15 @@ export class StableFluids {
 
 
 
-
     public constructor(canvas: HTMLCanvasElement) {
 
-        this.gl = canvas.getContext('webgl2');
-        if (this.gl == null) {
+        this.glctx = GLContext.createFromCanvas(canvas);
+        if (this.glctx == null) {
             throw new Error("webgl2 not supported!");
             return;
         }
+        this.gl = this.glctx.gl;
+
 
         this.m_canvasWidth = canvas.width;
         this.m_canvasHeight = canvas.height;
@@ -97,6 +99,7 @@ export class StableFluids {
 
     private InitGL() {
         let gl = this.gl;
+        let glctx = this.glctx;
 
         //exts
         let avail_exts = gl.getSupportedExtensions();
@@ -121,20 +124,20 @@ export class StableFluids {
         this.m_bufferIndicesQuad = ibuffer;
 
         //shader programs
-        this.m_programColor = ShaderProgram.LoadShader(gl, GLSL_VS_DEFAULT, GLSL_PS_COLOR);
-        this.m_programDefault = ShaderProgram.LoadShader(gl, GLSL_VS_DEFAULT, GLSL_PS_DEFAULT);
-        this.m_programDefaultFlipY  =ShaderProgram.LoadShader(gl,GLSL_VS_DEFAULT_FLIP,GLSL_PS_DEFAULT);
+        this.m_programColor = glctx.createProgram(GLSL_VS_DEFAULT, GLSL_PS_COLOR);
+        this.m_programDefault = glctx.createProgram( GLSL_VS_DEFAULT, GLSL_PS_DEFAULT);
+        this.m_programDefaultFlipY =glctx.createProgram(GLSL_VS_DEFAULT_FLIP,GLSL_PS_DEFAULT);
 
 
-        this.m_programFluid = ShaderProgram.LoadShader(gl,GLSL_VS_DEFAULT,GLSL_PS_FLUID);
+        this.m_programFluid = glctx.createProgram(GLSL_VS_DEFAULT,GLSL_PS_FLUID);
+        console.log(this.m_programFluid);
 
-        this.m_programAdvect = ShaderProgram.LoadShader(gl, GLSL_VS_DEFAULT, GLSL_PS_ADVECT);
-        this.m_programForce = ShaderProgram.LoadShader(gl, GLSL_VS_DEFAULT, GLSL_PS_FORCE);
-        this.m_programJacobi1D = ShaderProgram.LoadShader(gl, GLSL_VS_DEFAULT, GLSL_PS_JACOBI1D);
-        this.m_programJacobi2D = ShaderProgram.LoadShader(gl, GLSL_VS_DEFAULT, GLSL_PS_JACOBI2D);
-        this.m_programProjSetup = ShaderProgram.LoadShader(gl, GLSL_VS_DEFAULT, GLSL_PS_PROJSETUP);
-        this.m_programProjFinish = ShaderProgram.LoadShader(gl, GLSL_VS_DEFAULT, GLSL_PS_PROJFINISH);
-
+        this.m_programAdvect = glctx.createProgram(GLSL_VS_DEFAULT, GLSL_PS_ADVECT);
+        this.m_programForce = glctx.createProgram(GLSL_VS_DEFAULT, GLSL_PS_FORCE);
+        this.m_programJacobi1D =glctx.createProgram( GLSL_VS_DEFAULT, GLSL_PS_JACOBI1D);
+        this.m_programJacobi2D = glctx.createProgram( GLSL_VS_DEFAULT, GLSL_PS_JACOBI2D);
+        this.m_programProjSetup = glctx.createProgram( GLSL_VS_DEFAULT, GLSL_PS_PROJSETUP);
+        this.m_programProjFinish = glctx.createProgram(GLSL_VS_DEFAULT, GLSL_PS_PROJFINISH);
 
         //vao
         let vao = gl.createVertexArray();
@@ -142,16 +145,16 @@ export class StableFluids {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.m_bufferVertexQuad);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.m_bufferIndicesQuad);
 
-        gl.enableVertexAttribArray(this.m_programColor.AttrPosition);
-        gl.vertexAttribPointer(this.m_programColor.AttrPosition, 2, gl.FLOAT, false,0, 0);
-        gl.enableVertexAttribArray(this.m_programColor.AttrUV);
-        gl.vertexAttribPointer(this.m_programColor.AttrUV, 2, gl.FLOAT, false,  0,0);
+        gl.enableVertexAttribArray(this.m_programColor.Attributes['aPosition']);
+        gl.vertexAttribPointer(this.m_programColor.Attributes['aPosition'], 2, gl.FLOAT, false,0, 0);
+        gl.enableVertexAttribArray(this.m_programColor.Attributes['aUV']);
+        gl.vertexAttribPointer(this.m_programColor.Attributes['aUV'], 2, gl.FLOAT, false,  0,0);
 
         gl.bindVertexArray(null);
         this.m_vaoQuad = vao;
 
         //image
-        this.m_texImage = this.LoadImage('image.png',()=>this.m_textureLoaded = true);
+        this.m_texImage = glctx.createTextureImage('image.png',()=>this.m_textureLoaded = true);
 
         //framebuffer
         let fbuffer: WebGLFramebuffer = gl.createFramebuffer();
@@ -163,7 +166,6 @@ export class StableFluids {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     }
-
 
     private m_texV1: WebGLTexture;
     private m_texV2: WebGLTexture;
@@ -184,16 +186,18 @@ export class StableFluids {
     private InitSimulator() {
         if(!this.m_textureLoaded) return;
 
-        let gl = this.gl;
-        this.m_texV1 = this.CreateTexture(gl.RG32F,SIM_SIZE_W,SIM_SIZE_H,true,false);
-        this.m_texV2 = this.CreateTexture(gl.RG32F,SIM_SIZE_W,SIM_SIZE_H,true,false);
-        this.m_texV3 = this.CreateTexture(gl.RG32F,SIM_SIZE_W,SIM_SIZE_H,true,false);
+        let glctx = this.glctx;
 
-        this.m_texP1 = this.CreateTexture(gl.R32F,SIM_SIZE_W,SIM_SIZE_H,true,false);
-        this.m_texP2 = this.CreateTexture(gl.R32F,SIM_SIZE_W,SIM_SIZE_H,true,false);
+        let gl = this.gl;
+        this.m_texV1 = glctx.createTexture(gl.RG32F,SIM_SIZE_W,SIM_SIZE_H,true,false);
+        this.m_texV2 = glctx.createTexture(gl.RG32F,SIM_SIZE_W,SIM_SIZE_H,true,false);
+        this.m_texV3 = glctx.createTexture(gl.RG32F,SIM_SIZE_W,SIM_SIZE_H,true,false);
+
+        this.m_texP1 = glctx.createTexture(gl.R32F,SIM_SIZE_W,SIM_SIZE_H,true,false);
+        this.m_texP2 = glctx.createTexture(gl.R32F,SIM_SIZE_W,SIM_SIZE_H,true,false);
         
-        this.m_colRT1 = this.CreateTexture(gl.RGBA8,SIM_SIZE_W,SIM_SIZE_H,true,true);
-        this.m_colRT2 = this.CreateTexture(gl.RGBA8,SIM_SIZE_W,SIM_SIZE_H,true,true);
+        this.m_colRT1 = glctx.createTexture(gl.RGBA8,SIM_SIZE_W,SIM_SIZE_H,true,true);
+        this.m_colRT2 = glctx.createTexture(gl.RGBA8,SIM_SIZE_W,SIM_SIZE_H,true,true);
 
         this.RenderToTexture(this.m_texImage,this.m_colRT1,true);
         this.ResetFrameBuffer();
@@ -230,7 +234,8 @@ export class StableFluids {
         this.SetRenderTarget(this.m_texV2);
         this.DrawTexture(this.m_texV1,null,null,this.m_programAdvect,(p)=>{
             let wgl = gl;
-            gl.uniform1f(p.UnifDeltaTime,deltaTime);
+            let uDeltaTime = p['uDeltaTime'];
+            gl.uniform1f(uDeltaTime,deltaTime);
         });
 
         //Diffuse setup
@@ -247,15 +252,20 @@ export class StableFluids {
                 this.SetRenderTarget(this.m_texV3);
                 this.DrawTexture(this.m_texV2,this.m_texV1,null,this.m_programJacobi2D,(p)=>{
                     let wgl = gl;
-                    wgl.uniform1f(p.UnifAlpha,alpha);
-                    wgl.uniform1f(p.UnifBeta,beta);
+
+                    let ualpha = p['uAlpha'];
+                    let ubeta = p['uBeta'];
+                    wgl.uniform1f(ualpha,alpha);
+                    wgl.uniform1f(ubeta,beta);
                 })
 
                 this.SetRenderTarget(this.m_texV2);
                 this.DrawTexture(this.m_texV3,this.m_texV1,null,this.m_programJacobi2D,(p)=>{
                     let wgl = gl;
-                    wgl.uniform1f(p.UnifAlpha,alpha);
-                    wgl.uniform1f(p.UnifBeta,beta);
+                    let ualpha = p['uAlpha'];
+                    let ubeta = p['uBeta'];
+                    wgl.uniform1f(ualpha,alpha);
+                    wgl.uniform1f(ubeta,beta);
                 })
             }
         }
@@ -281,14 +291,16 @@ export class StableFluids {
         this.SetRenderTarget(this.m_texV3);
         this.DrawTexture(this.m_texV2,null,null,this.m_programForce,(p)=>{
             let wgl = gl;
-            wgl.uniform1f(p.UnifForceExponent,this.m_exponent);
-            wgl.uniform2f(p.UnifForceOrigin,this.m_inputX,this.m_inputY);
-            wgl.uniform2f(p.UnifForceVector,forceX,forceY);
+
+            let uForceExponent = p['uForceExponent'];
+            let uForceOrigin = p['uForceOrigin'];
+            let uForceVector = p['uForceVector'];
+            wgl.uniform1f(uForceExponent,this.m_exponent);
+            wgl.uniform2f(uForceOrigin,this.m_inputX,this.m_inputY);
+            wgl.uniform2f(uForceVector,forceX,forceY);
         });
 
-
         this.RenderToTexture(this.m_texV3,this.m_texV1);
-
 
         //Proj setup V3->V1
 
@@ -298,17 +310,9 @@ export class StableFluids {
             //V2(divergence of Velocity)
             this.DrawTexture(this.m_texV3,null,null,this.m_programProjSetup,null);
 
-            // this.ResetFrameBuffer();
-            // this.DrawTextureDefault(this.m_texV2);
-    
-            // return;
-
             //set P1 to 0
             this.SetRenderTarget(this.m_texP1);
             this.DrawColor([0,0,0,0]);
-
-
-    
     
             //Jacobi 1D
             let dx = this.m_dx;
@@ -318,15 +322,15 @@ export class StableFluids {
                 this.SetRenderTarget(this.m_texP2);
                 this.DrawTexture(this.m_texP1,this.m_texV2,null,this.m_programJacobi1D,(p)=>{
                     let wgl = gl;
-                    wgl.uniform1f(p.UnifAlpha,alpha1d);
-                    wgl.uniform1f(p.UnifBeta,beta1d);
+                    wgl.uniform1f(p['uAlpha'],alpha1d);
+                    wgl.uniform1f(p['uBeta'],beta1d);
                 });
     
                 this.SetRenderTarget(this.m_texP1);
                 this.DrawTexture(this.m_texP2,this.m_texV2,null,this.m_programJacobi1D,(p)=>{
                     let wgl = gl;
-                    wgl.uniform1f(p.UnifAlpha,alpha1d);
-                    wgl.uniform1f(p.UnifBeta,beta1d);
+                    wgl.uniform1f(p['uAlpha'],alpha1d);
+                    wgl.uniform1f(p['uBeta'],beta1d);
                 });
             }
     
@@ -337,7 +341,6 @@ export class StableFluids {
         else{
             this.RenderToTexture(this.m_texV3,this.m_texV1);
         }
-
 
         //Use velocity to carry color
 
@@ -350,18 +353,17 @@ export class StableFluids {
             this.SetRenderTarget(this.m_colRT2);
             this.DrawTexture(this.m_colRT1, this.m_texV1, null, this.m_programFluid, (p) => {
                 let wgl = gl;
-                wgl.uniform1f(p.UnifDeltaTime, deltaTime);
-                wgl.uniform1f(p.UnifTime,ts/1000.0);
-                wgl.uniform1f(p.UnifForceExponent,this.m_exponent);
+                wgl.uniform1f(p['uDeltaTime'], deltaTime);
+                wgl.uniform1f(p['uTime'],ts/1000.0);
+                wgl.uniform1f(p['uForceExponent'],this.m_exponent);
                 
                 if(this.m_inputOnDrag){
-                    wgl.uniform2f(p.UnifForceOrigin,this.m_inputX,this.m_inputY);
+                    wgl.uniform2f(p['uForceOrigin'],this.m_inputX,this.m_inputY);
                 }
                 else{
-                    wgl.uniform2f(p.UnifForceOrigin,-10.0,-10.0);
+                    wgl.uniform2f(p['uForceOrigin'],-10.0,-10.0);
                 }
             })
-
 
             this.ResetFrameBuffer();
             this.DrawTextureDefault(this.m_colRT2);
@@ -371,11 +373,6 @@ export class StableFluids {
             this.m_colRT1 = this.m_colRT2;
             this.m_colRT2 = temp;
         }
-
-
-
-        
-
     }
 
     private RandomVecIdentity():number[]{
@@ -423,12 +420,14 @@ export class StableFluids {
         gl.bindVertexArray(this.m_vaoQuad);
         gl.useProgram(this.m_programColor.Program);
 
-        gl.uniform4fv(this.m_programColor.UnifColor,color);
+        let ucolor = this.m_programColor['uColor'];
+
+        gl.uniform4fv(ucolor,color);
         gl.drawElements(gl.TRIANGLES,6,gl.UNSIGNED_SHORT,0);
 
     }
 
-    private DrawTexture(tex0:WebGLTexture,tex1?:WebGLTexture,tex2?:WebGLTexture,program?:ShaderProgram,setUniform?:(p:ShaderProgram)=>void){
+    private DrawTexture(tex0:WebGLTexture,tex1?:WebGLTexture,tex2?:WebGLTexture,program?:GLProgram,setUniform?:(p:GLProgram)=>void){
         if(program == null) program = this.m_programDefault;
 
         let gl = this.gl;
@@ -438,17 +437,22 @@ export class StableFluids {
         if(tex0 != null){
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D,tex0);
-            gl.uniform1i(program.UnifSampler0,0);
+
+            let usampler0 = program['uSampler'];
+            gl.uniform1i(usampler0,0);
         }
         if(tex1 != null){
             gl.activeTexture(gl.TEXTURE1);
             gl.bindTexture(gl.TEXTURE_2D,tex1);
-            gl.uniform1i(program.UnifSampler1,1);
+
+            let usampler1 = program['uSampler1'];
+            gl.uniform1i(usampler1,1);
         }
         if(tex2 != null){
             gl.activeTexture(gl.TEXTURE2);
             gl.bindTexture(gl.TEXTURE_2D,tex2);
-            gl.uniform1i(program.UnifSampler2,2);
+            let usampler2 = program['uSampler2'];
+            gl.uniform1i(usampler2,2);
         }
 
         if(setUniform != null){
@@ -456,149 +460,5 @@ export class StableFluids {
         }
         gl.drawElements(gl.TRIANGLES,6,gl.UNSIGNED_SHORT,0);
 
-        
-    }
-
-    private CreateTexture(internalFormat: number, width: number, height: number,linear:boolean = false,mipmap:boolean = false): WebGLTexture {
-        let gl = this.gl;
-
-        let tex = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.texStorage2D(gl.TEXTURE_2D,1,internalFormat,width,height);
-        
-        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,linear? gl.LINEAR: gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER, linear?( mipmap? gl.LINEAR_MIPMAP_LINEAR:gl.LINEAR): gl.NEAREST);
-
-        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
-
-        if(mipmap)
-            gl.generateMipmap(gl.TEXTURE_2D);
-
-        return tex;
-    }
-
-    private LoadImage(src: string,callback?:()=>void): WebGLTexture {
-        var img = new Image();
-        var gl = this.gl;
-        var tex = gl.createTexture();
-        img.onload = () => {
-            gl.bindTexture(gl.TEXTURE_2D, tex);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
-            gl.generateMipmap(gl.TEXTURE_2D);
-
-            gl.bindTexture(gl.TEXTURE_2D,null);
-
-            console.log('init webgl texture');
-            if(callback!= null) callback();
-        };
-        img.src = src;
-        return tex;
-    }
-
-
-}
-
-class ShaderProgram {
-
-    public Program: WebGLProgram;
-
-    public Attributes: { [key: string]: number } = {};
-    public Unifroms: { [key: string]: WebGLUniformLocation } = {};
-
-    public AttrPosition: number;
-    public AttrUV: number;
-
-    public UnifColor: WebGLUniformLocation;
-    public UnifSampler0: WebGLUniformLocation;
-    public UnifSampler1: WebGLUniformLocation;
-    public UnifSampler2: WebGLUniformLocation;
-
-    public UnifDeltaTime: WebGLUniformLocation;
-    public UnifTime: WebGLUniformLocation;
-
-    //Jacobi2
-    public UnifAlpha: WebGLUniformLocation;
-    public UnifBeta:WebGLUniformLocation;
-
-    //AddForce
-    public UnifForceOrigin: WebGLUniformLocation;
-    public UnifForceVector:WebGLUniformLocation;
-    public UnifForceExponent:WebGLUniformLocation;
-
-    private constructor(gl: WebGL2RenderingContext, program: WebGLProgram) {
-        this.Program = program;
-
-        const numAttrs = gl.getProgramParameter(program, gl.ACTIVE_ATTRIBUTES);
-        for (let i = 0; i < numAttrs; i++) {
-            const attrInfo = gl.getActiveAttrib(program, i);
-            if (attrInfo == null) continue;
-            const attrLoca = gl.getAttribLocation(program, attrInfo.name);
-            this.Attributes[attrInfo.name] = attrLoca;
-        }
-
-        const numUniform = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
-        for (let i = 0; i < numUniform; i++) {
-            const uniformInfo = gl.getActiveUniform(program, i);
-            if (uniformInfo == null) continue;
-            const uniformLoca = gl.getUniformLocation(program, uniformInfo.name);
-            this.Unifroms[uniformInfo.name] = uniformLoca;
-        }
-
-        this.AttrPosition = this.Attributes['aPosition'];
-        this.AttrUV = this.Attributes['aUV'];
-
-        this.UnifColor = this.Unifroms['uColor'];
-        this.UnifSampler0 = this.Unifroms['uSampler'];
-        this.UnifSampler1 = this.Unifroms['uSampler1'];
-        this.UnifSampler2 = this.Unifroms['uSampler2'];
-
-        this.UnifDeltaTime = this.Unifroms['uDeltaTime'];
-        this.UnifTime = this.Unifroms['uTime'];
-
-        this.UnifAlpha = this.Unifroms['uAlpha'];
-        this.UnifBeta = this.Unifroms['uBeta'];
-
-        this.UnifForceOrigin = this.Unifroms['uForceOrigin'];
-        this.UnifForceExponent = this.Unifroms['uForceExponent'];
-        this.UnifForceVector =this.Unifroms['uForceVector'];
-    }
-
-    public static LoadShader(gl: WebGL2RenderingContext, vsource: string, psource: string) {
-
-        let vs = gl.createShader(gl.VERTEX_SHADER);
-        gl.shaderSource(vs, vsource);
-        gl.compileShader(vs);
-
-        if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) {
-            console.error('compile vertex shader failed: ' + gl.getShaderInfoLog(vs));
-            gl.deleteShader(vs);
-            return null;
-        }
-
-        let ps = gl.createShader(gl.FRAGMENT_SHADER);
-        gl.shaderSource(ps, psource);
-        gl.compileShader(ps);
-
-        if (!gl.getShaderParameter(ps, gl.COMPILE_STATUS)) {
-            console.error('compile fragment shader failed: ' + gl.getShaderInfoLog(ps));
-            gl.deleteShader(ps);
-            return null;
-        }
-
-        let program = gl.createProgram();
-        gl.attachShader(program, vs);
-        gl.attachShader(program, ps);
-        gl.linkProgram(program);
-
-        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-            console.error('link shader program failed!:' + gl.getProgramInfoLog(program));
-            gl.deleteProgram(program);
-            gl.deleteShader(vs);
-            gl.deleteShader(ps);
-            return null;
-        }
-
-        return new ShaderProgram(gl, program);
     }
 }
