@@ -1,6 +1,9 @@
-define("GLProgram", ["require", "exports"], function (require, exports) {
-    "use strict";
-    exports.__esModule = true;
+(function (global, factory) {
+    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
+    typeof define === 'function' && define.amd ? define(['exports'], factory) :
+    (factory((global.wglut = {})));
+}(this, (function (exports) { 'use strict';
+
     var GLProgram = /** @class */ (function () {
         function GLProgram(gl, program) {
             this.Attributes = {};
@@ -31,11 +34,7 @@ define("GLProgram", ["require", "exports"], function (require, exports) {
         };
         return GLProgram;
     }());
-    exports.GLProgram = GLProgram;
-});
-define("GLContext", ["require", "exports", "GLProgram"], function (require, exports, GLProgram_1) {
-    "use strict";
-    exports.__esModule = true;
+
     var GLContext = /** @class */ (function () {
         function GLContext(wgl) {
             this.gl = wgl;
@@ -83,7 +82,7 @@ define("GLContext", ["require", "exports", "GLProgram"], function (require, expo
             }
             if (program == null)
                 return null;
-            var p = new GLProgram_1.GLProgram(gl, program);
+            var p = new GLProgram(gl, program);
             var handler = {
                 get: function (tar, name) {
                     if (name in tar)
@@ -136,14 +135,11 @@ define("GLContext", ["require", "exports", "GLProgram"], function (require, expo
         };
         return GLContext;
     }());
+
     exports.GLContext = GLContext;
-});
-define("wglut", ["require", "exports", "GLContext", "GLProgram"], function (require, exports, GLContext_1, GLProgram_2) {
-    "use strict";
-    function __export(m) {
-        for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
-    }
-    exports.__esModule = true;
-    __export(GLContext_1);
-    __export(GLProgram_2);
-});
+    exports.GLProgram = GLProgram;
+
+    Object.defineProperty(exports, '__esModule', { value: true });
+
+})));
+//# sourceMappingURL=wglut.js.map

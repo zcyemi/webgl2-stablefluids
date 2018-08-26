@@ -28,6 +28,6 @@
     "@types/webgl2": "0.0.4"
   },
   "dependencies": {
-    "wglut": "0.0.1"
+    "wglut": "0.0.2"
   }
 }
