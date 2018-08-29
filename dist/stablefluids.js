@@ -13,7 +13,7 @@ define("ShaderLibs", ["require", "exports"], function (require, exports) {
     exports.GLSL_PS_FLUID = '#version 300 es\nprecision mediump float;\nin vec2 vUV;\nuniform sampler2D uSampler; //Color Texture RGB\nuniform sampler2D uSampler1; //Velocity texture RG32F\n\nuniform float uDeltaTime;\n\nuniform float uForceExponent;\nuniform vec2 uForceOrigin;\nuniform float uTime;\n\n\nout vec4 fragColor;\nvoid main(){\n//color advection\nvec2 delta = texture(uSampler1,vUV).xy  * uDeltaTime;\nvec3 color =texture(uSampler,vUV - delta).xyz;\n\n//color added\n// vec3 dye = clamp(sin(uTime * vec3(2.72, 5.12, 4.98))+0.5,0.0,1.0);\n// float amp = exp(-uForceExponent * distance(uForceOrigin, vUV));\n// color = mix(color, dye,  clamp(amp * 100.0,0.0,1.0));\n\nfragColor = vec4(color,1.0);\n}';
     exports.GLSL_VS_DEFAULT_FLIP = '#version 300 es\nprecision mediump float;\nlayout(location = 0) in vec2 aPosition;\nlayout(location = 1) in vec2 aUV;\n\nout vec2 vUV;\n\nvoid main(){\ngl_Position = vec4(aPosition *2.0-1.0,0,1);\n\nvUV = aUV;\nvUV.y = 1.0 - vUV.y;\n}';
 });
-define("StableFluids", ["require", "exports", "ShaderLibs", "wglut"], function (require, exports, ShaderLibs_1, wglut_1) {
+define("StableFluids", ["require", "exports", "ShaderLibs", "wglut"], function (require, exports, ShaderLibs_1, wglut) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var SIM_SIZE_W = 512;
@@ -33,10 +33,9 @@ define("StableFluids", ["require", "exports", "ShaderLibs", "wglut"], function (
             this.m_viscosity = 0.000001;
             this.m_force = 300;
             this.m_exponent = 200;
-            this.glctx = wglut_1.GLContext.createFromCanvas(canvas);
+            this.glctx = wglut.GLContext.createFromCanvas(canvas);
             if (this.glctx == null) {
                 throw new Error("webgl2 not supported!");
-                return;
             }
             this.gl = this.glctx.gl;
             this.m_canvasWidth = canvas.width;

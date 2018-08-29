@@ -1,5 +1,11 @@
 import { GLSL_VS_DEFAULT, GLSL_PS_ADVECT, GLSL_PS_FORCE, GLSL_PS_JACOBI1D, GLSL_PS_JACOBI2D, GLSL_PS_PROJSETUP, GLSL_PS_PROJFINISH, GLSL_PS_DEFAULT, GLSL_PS_COLOR, GLSL_PS_FLUID, GLSL_VS_DEFAULT_FLIP } from "./ShaderLibs";
-import {GLContext, GLProgram} from 'wglut';
+
+
+/// <reference path='./../../node_modules/wglut/dist/wglut.d.ts'/>
+import wglut = require('wglut');
+
+type GLContext = wglut.GLContext;
+type GLProgram = wglut.GLProgram;
 
 const SIM_SIZE_W: number = 512;
 const SIM_SIZE_H: number = 512;
@@ -53,10 +59,9 @@ export class StableFluids {
 
     public constructor(canvas: HTMLCanvasElement) {
 
-        this.glctx = GLContext.createFromCanvas(canvas);
+        this.glctx = wglut.GLContext.createFromCanvas(canvas);
         if (this.glctx == null) {
             throw new Error("webgl2 not supported!");
-            return;
         }
         this.gl = this.glctx.gl;
 

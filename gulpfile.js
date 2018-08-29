@@ -5,56 +5,31 @@ const through = require('through2');
 const path = require('path');
 const fs = require('fs');
 const util = require('util');
+const gulprun = require('gulp-run');
 
 gulp.task("build",()=>{
     BuildScript();
-    BuildTemplate();
     BuildShader();
-
-    gulp.src('./node_modules/wglut/dist/**.js').pipe(gulp.dest('./dist/'));
 });
 
-gulp.task("doc",()=>{
-    gulp.src('dist/**/*').pipe(gulp.dest('docs/'));
-});
 
-gulp.task("watch",()=>{
-
-    BuildScript();
-    BuildTemplate();
-    BuildShader();
-    gulp.src('./node_modules/wglut/dist/**.js').pipe(gulp.dest('./dist/'));
-
-    gulp.watch('./src/script/**/*.ts',BuildScript);
-    gulp.watch('./src/template/**.*',BuildTemplate);
-    gulp.watch('./src/shader/*.glsl',BuildShader);
+gulp.task("run",()=>{
+    gulp.src('./dist/StableFluids.js').pipe(gulp.dest('./docs/'));
+    gulp.src('./node_modules/wglut/dist/**.js').pipe(gulp.dest('./docs/'));
 
     browersync.init({
         server: {
-            baseDir: './dist/'
+            baseDir: './docs/'
         },
         port: 6633,
-        files: ['./dist/*.js', './dist/*.html']
+        files: ['./docs/*.js', './docs/*.html']
     })
 });
 
+
 function BuildScript(){
     console.log('[sync script]');
-    gulp.src('./src/script/**/*.ts').pipe(gulpts({
-        module: 'amd',
-        declaration: true,
-        outFile: 'StableFluids.js',
-        target: 'es5',
-        moduleResolution: 'node',
-    }))
-    .pipe(gulp.dest('./dist/'));
-
-    gulp.src('./node_modules/wglut/dist/**.js').pipe(gulp.dest('./dist/'));
-}
-
-function BuildTemplate(){
-    console.log('[sync template]');
-    gulp.src('./src/template/**.*').pipe(gulp.dest('./dist'));
+    gulprun('tsc').exec();
 }
 
 function BuildShader(){
