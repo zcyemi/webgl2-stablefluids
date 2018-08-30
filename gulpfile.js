@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const util = require('util');
 const gulprun = require('gulp-run');
+const rename = require('gulp-rename');
 
 gulp.task("build",()=>{
     BuildScript();
@@ -15,7 +16,7 @@ gulp.task("build",()=>{
 
 gulp.task("run",()=>{
     gulp.src('./dist/StableFluids.js').pipe(gulp.dest('./docs/'));
-    gulp.src('./node_modules/wglut/dist/**.js').pipe(gulp.dest('./docs/'));
+    gulp.src('./node_modules/wglut/dist/wglut.umd.js').pipe(rename('wglut.js')).pipe(gulp.dest('./docs/'));
 
     browersync.init({
         server: {

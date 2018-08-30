@@ -23,6 +23,7 @@
     "browser-sync": "^2.24.5",
     "gulp": "^3.9.1",
     "gulp-glsl": "^1.2.4",
+    "gulp-rename": "^1.4.0",
     "gulp-run": "^1.7.1",
     "gulp-sequence": "^1.0.0",
     "gulp-typescript": "^5.0.0-alpha.3",
@@ -30,7 +31,7 @@
     "typescript": "^2.9.2"
   },
   "dependencies": {
-    "wglut": "0.0.3"
+    "wglut": "0.0.4"
   },
   "files": [
     "./dist"
